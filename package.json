@@ -1,0 +1,86 @@
+// frontend/src/utils/api.js
+// Centralized API client for talking to the Node.js backend
+
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:3001/api";
+
+function getToken() {
+  return localStorage.getItem("meta_app_token");
+}
+
+function setToken(token) {
+  localStorage.setItem("meta_app_token", token);
+}
+
+function clearToken() {
+  localStorage.removeItem("meta_app_token");
+}
+
+async function apiFetch(endpoint, options = {}) {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    window.location.href = "/";
+    throw new Error("Session expired");
+  }
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(error.error || "Request failed");
+  }
+
+  return res.json();
+}
+
+// ---- Auth ----
+function getLoginUrl() {
+  return `${API_BASE}/auth/facebook`;
+}
+
+function getCurrentUser() {
+  return apiFetch("/auth/me");
+}
+
+// ---- Facebook ----
+function getFacebookPages() {
+  return apiFetch("/facebook/pages");
+}
+
+function getFacebookPosts(pageId, limit = 25) {
+  return apiFetch(`/facebook/posts/${pageId}?limit=${limit}`);
+}
+
+// ---- Instagram ----
+function getInstagramAccounts() {
+  return apiFetch("/instagram/accounts");
+}
+
+function getInstagramPosts(accountId, limit = 25) {
+  return apiFetch(`/instagram/posts/${accountId}?limit=${limit}`);
+}
+
+// ---- Combined Feed ----
+function getCombinedFeed(limit = 50) {
+  return apiFetch(`/feed/combined?limit=${limit}`);
+}
+
+export {
+  getToken,
+  setToken,
+  clearToken,
+  getLoginUrl,
+  getCurrentUser,
+  getFacebookPages,
+  getFacebookPosts,
+  getInstagramAccounts,
+  getInstagramPosts,
+  getCombinedFeed,
+};
